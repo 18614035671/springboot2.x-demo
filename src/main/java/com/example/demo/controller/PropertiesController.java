@@ -10,9 +10,13 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpRequest;
+import org.springframework.util.ResourceUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,8 +27,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.util.Map;
-
 
 @Api(tags = "用户接口")//描述UserController的信息
 @RequestMapping("/properties")
@@ -106,4 +117,33 @@ public class PropertiesController {
     @GetMapping("/ignore")
     @ApiIgnore
     public void ignoreMethod(){}
+
+    @GetMapping("/getExcel")
+    public void getExcel(HttpServletResponse response){
+        try {
+            ClassPathResource resource = new ClassPathResource("bankNameTemplate.xlsx");    // static/pattern下的 test.txt文件
+            InputStream in = resource.getInputStream();  //获取文件输入流
+            //转换为文件流
+            BufferedInputStream fs = new BufferedInputStream(in);
+            //指定默认下载名称
+            String fileName = "XXX.xlsx";
+            //配置response的头
+            response.reset();
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            try {
+                response.setHeader("Content-Disposition", "attachment;filename=" + URLEncoder.encode(fileName, "UTF-8"));
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            //循环从文件中读出数据后写出，完成下载
+            byte[] b = new byte[1024];
+            int len;
+            while ((len = fs.read(b)) != -1) {
+                response.getOutputStream().write(b, 0, len);
+            }
+            fs.close();
+        } catch (Exception e) {
+            log.error("下载Excel模板异常", e);
+        }
+    }
 }
